@@ -14,6 +14,7 @@ import mechanize
 from BeautifulSoup import BeautifulSoup
 from tabulate import tabulate
 from natsort import natsorted
+from collections import OrderedDict
 
 # Sanitize bad HTML so mechanize doens't die
 # Code found on StackOverflow 
@@ -94,7 +95,6 @@ class POETradeInterface():
         page = response.read()
         soup = BeautifulSoup(page)
 
-        headers = ["Item Name", "Seller IGN", "Sockets", "Price"]
         names = []
         sellers = []
         sockets = []
@@ -127,6 +127,31 @@ class POETradeInterface():
         data = zip(names, sellers, sockets, prices)
         return data
 
+    def get_query_results_dict(self, url):
+        req = urllib2.Request(url)
+        response = urllib2.urlopen(req)
+        page = response.read()
+        soup = BeautifulSoup(page)
+
+        items = []
+        raw_items = soup.findAll("tbody", {"class" : "item"})
+        for item in raw_items:
+            description = OrderedDict()
+            description["name"] = item['data-name']
+            description["seller"] = item['data-ign']
+            description["sockets"] = item.find(
+                    "span" , 
+                    {"class" : "sockets-raw"}
+                    ).text
+            description["price"] = item['data-buyout']
+            description["pdps"] = item.find(
+                    "td",
+                    {"data-name" : "quality_pdps"},
+                    ).text
+            items.append(description)
+
+        return items
+
     def _sort_by_price(self, data):
         """
         Sorts a given dataset by price (separating the currencies accordingly since we 
@@ -145,21 +170,21 @@ class POETradeInterface():
         chaos = []
         exalted = []
 
-        # We know that the item at index 3 is the price in the format of "# <currency>"
         for item in data:
-            if "alchemy" in item[3]:
+            price = item['price']
+            if "alchemy" in price:
                 alch.append(item)
-            elif "fusing" in item[3]:
+            elif "fusing" in price:
                 fusing.append(item)
-            elif "chaos" in item[3]:
+            elif "chaos" in price:
                 chaos.append(item)
-            elif "exalted" in item[3]:
+            elif "exalted" in price:
                 exalted.append(item)
 
-        alch = natsorted(alch, key=lambda item: item[3])
-        fusing = natsorted(fusing, key=lambda item: item[3])
-        chaos = natsorted(chaos, key=lambda item: item[3])
-        exalted = natsorted(exalted, key=lambda item: item[3])
+        alch = natsorted(alch, key=lambda item: item['price'])
+        fusing = natsorted(fusing, key=lambda item: item['price'])
+        chaos = natsorted(chaos, key=lambda item: item['price'])
+        exalted = natsorted(exalted, key=lambda item: item['price'])
 
         result = []
         result.extend(alch)
@@ -179,10 +204,16 @@ class POETradeInterface():
         Returns:
             dict: items, their prices, and their stats 
         """
-        data = self.get_query_url_results(url)
+        data = self.get_query_results_dict(url)
         data = self._sort_by_price(data)
-        headers = ["Item Name", "Seller IGN", "Sockets", "Price"]
-        print tabulate(data, headers, tablefmt="rst")
+        headers = {
+                "name" : "Item Name", 
+                "seller" : "Seller IGN", 
+                "sockets": "Sockets", 
+                "price" : "Price",
+                "pdps" : "pDPS",
+        }
+        print tabulate(data[:5], headers, tablefmt="rst")
 
 
 
