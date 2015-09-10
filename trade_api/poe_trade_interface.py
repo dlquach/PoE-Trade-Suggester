@@ -83,51 +83,11 @@ class POETradeInterface():
         
         search_response = self._browser.submit()
         return search_response.geturl()
-    
+
     def get_query_url_results(self, url):
         """
-        Takes in a query and returns an array containing all of the item data.
-
-        TODO: Return a dictionary instead of this ugly array
+        Takes in a query url and returns all of the items' data in a dictionary.
         """
-        req = urllib2.Request(url)
-        response = urllib2.urlopen(req)
-        page = response.read()
-        soup = BeautifulSoup(page)
-
-        names = []
-        sellers = []
-        sockets = []
-        prices = []
-
-        # itemframe2 indicates a rare, itemframe3 indicates a unique
-        name_search = soup.findAll("a", {"class" : ["title itemframe2", "title itemframe3"]})
-        for item in name_search:
-            raw_name = ''.join(item.findAll(text=True))
-            if "corrupted" in raw_name:
-                names.append(raw_name.replace("corrupted ", '') + '(C)')
-            else:
-                names.append(raw_name)
-
-        price_search = soup.findAll("tbody", {"class" : "item"})
-        for item in price_search:
-            prices.append(item["data-buyout"])
-
-        socket_search = soup.findAll("span", {"class" : "sockets-raw"})
-        for item in socket_search:
-            sockets.append(item.text)
-
-        seller_search = soup.findAll("span", {"class" : "requirements"})
-
-        for item in seller_search:
-            find_ign = re.search('IGN:\ ([A-Za-z0-9_]*)\ ', item.text)
-            if find_ign:
-                sellers.append(find_ign.group(1))
-
-        data = zip(names, sellers, sockets, prices)
-        return data
-
-    def get_query_results_dict(self, url):
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
         page = response.read()
@@ -204,7 +164,7 @@ class POETradeInterface():
         Returns:
             dict: items, their prices, and their stats 
         """
-        data = self.get_query_results_dict(url)
+        data = self.get_query_url_results(url)
         data = self._sort_by_price(data)
         headers = {
                 "name" : "Item Name", 
